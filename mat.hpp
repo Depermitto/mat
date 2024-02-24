@@ -63,7 +63,15 @@ class Interface {
         return os;
     }
 
-    auto operator==(const Interface &mat) const -> bool {
+    /** The == operator is implemented on all matrix specialization and matrices of different sizes,
+     *  it checks if the size if the same and then compares every element to each other.
+     */
+    template <uint R, uint C>
+    auto operator==(const Interface<R, C, T> &mat) const -> bool {
+        if (Rows * Cols != R * C) {
+            return false;
+        }
+        
         for (uint i = 0; i < Rows; ++i) {
             for (uint j = 0; j < Rows; ++j) {
                 if (this->get(i, j).value() != mat.get(i, j).value()) {
@@ -73,12 +81,16 @@ class Interface {
         }
         return true;
     }
-
-    auto operator!=(const Interface &mat) const -> bool {
-        return (not(*this)) == mat;
+    
+    /** The != is the negation of ==, refer to == for implementation details.
+     */
+    template <uint R, uint C>
+    auto operator!=(const Interface<R, C, T> &mat) const -> bool {
+        return not (*this == mat);
     }
 };
 
+namespace detail {
 #define MUL(T, Rows, Cols)                                                                        \
     /**                                                                                           \
      * Performs standard matrix multiplication.                                                   \
@@ -124,11 +136,6 @@ class Interface {
     template <typename Number, std::enable_if_t<std::is_arithmetic_v<Number>, bool> = true>     \
     friend auto operator*(Number constant, const Mat<Rows, Cols, T> &mat)->Mat<Rows, Cols, T> { \
         return mat.mul(constant);                                                               \
-    }                                                                                           \
-                                                                                                \
-    template <typename Number, std::enable_if_t<std::is_arithmetic_v<Number>, bool> = true>     \
-    friend auto operator/(const Mat<Rows, Cols, T> &mat, Number constant)->Mat<Rows, Cols, T> { \
-        return mat.mul(1 / constant);                                                           \
     }
 
 #define TRANSPOSE(T, Rows, Cols)                                   \
@@ -186,74 +193,6 @@ class Interface {
         return this->dot(other);                                                                    \
     }
 
-//====================================================================================================
-
-template <uint Rows, uint Cols, typename T = double>
-using table = std::array<std::array<T, Cols>, Rows>;
-
-template <uint Rows, uint Cols, typename T = double>
-auto tablify(const std::array<T, Rows * Cols> &arr) noexcept -> table<Rows, Cols, T> {
-    table<Rows, Cols, T> data{};
-    for (uint i = 0, col = 0; i < arr.size(); i += Cols, col++) {
-        auto begin = arr.begin() + i;
-        auto end = arr.begin() + i + Cols;
-        auto dst = data[col].begin();
-        std::copy(begin, end, dst);
-    }
-    return data;
-}
-
-#define THROW_OUT_OF_RANGE(i)                                                     \
-    std::stringstream error_message;                                              \
-    error_message << "array::at: __n (which is " << i << ") >= _Nm (which is 1)"; \
-    throw std::out_of_range(error_message.str());
-
-//====================================================================================================
-/**
- * The primary Mat class, includes all matrices NxM, where N>=1, and N!=M.
- * @tparam Rows
- * @tparam Cols
- * @tparam T
- */
-template <uint Rows, uint Cols, std::convertible_to<double> T = double>
-class Mat : public Interface<Rows, Cols, T> {
-   protected:
-    table<Rows, Cols, T> data;
-
-   public:
-    Mat() = default;
-    ~Mat() = default;
-    explicit Mat(std::array<T, Cols * Rows> arr) : data(tablify<Rows, Cols, T>(arr)) {}
-
-    auto get(uint i, uint j) const noexcept -> std::expected<T, Error> override {
-        if (i >= Rows or j >= Cols) {
-            return std::unexpected(Error::OutOfRange);
-        }
-        return this->data.at(i).at(j);
-    }
-
-    auto at(uint i, uint j) -> T & override {
-        return this->data.at(i).at(j);
-    }
-
-    // Getter for row amount.
-    [[nodiscard]] consteval auto rows() noexcept -> uint {
-        return Rows;
-    }
-
-    // Getter for column amount.
-    [[nodiscard]] consteval auto cols() noexcept -> uint {
-        return Cols;
-    }
-
-    ARITHMETIC(T, Rows, Cols, +, add, +)
-    ARITHMETIC(T, Rows, Cols, -, sub, -)
-    ARITHMETIC(T, Rows, Cols, *, hadamard, &)
-    MUL(T, Rows, Cols)
-    MUL_CONSTANT(T, Rows, Cols)
-    TRANSPOSE(T, Rows, Cols)
-};
-
 #define VECTOR(T, Rows, Cols)                                                                     \
     ARITHMETIC(T, Rows, Cols, +, add, +)                                                          \
     ARITHMETIC(T, Rows, Cols, -, sub, -)                                                          \
@@ -293,11 +232,80 @@ class Mat : public Interface<Rows, Cols, T> {
     }
 
 //====================================================================================================
+
+template <uint Rows, uint Cols, typename T = double>
+using table = std::array<std::array<T, Cols>, Rows>;
+
+template <uint Rows, uint Cols, typename T = double>
+auto tablify(const std::array<T, Rows * Cols> &arr) noexcept -> table<Rows, Cols, T> {
+    table<Rows, Cols, T> data{};
+    for (uint i = 0, col = 0; i < arr.size(); i += Cols, col++) {
+        auto begin = arr.begin() + i;
+        auto end = arr.begin() + i + Cols;
+        auto dst = data[col].begin();
+        std::copy(begin, end, dst);
+    }
+    return data;
+}
+
+#define THROW_OUT_OF_RANGE(i)                                                     \
+    std::stringstream error_message;                                              \
+    error_message << "array::at: __n (which is " << i << ") >= _Nm (which is 1)"; \
+    throw std::out_of_range(error_message.str());
+}  // namespace detail
+
+//====================================================================================================
+/**
+ * The primary Mat class, includes all matrices NxM, where N>=1, and N!=M.
+ * @tparam Rows
+ * @tparam Cols
+ * @tparam T
+ */
+template <uint Rows, uint Cols, std::convertible_to<double> T = double>
+class Mat : public Interface<Rows, Cols, T> {
+   protected:
+    detail::table<Rows, Cols, T> data;
+
+   public:
+    Mat() = default;
+    ~Mat() = default;
+    explicit Mat(std::array<T, Cols * Rows> arr) : data(detail::tablify<Rows, Cols, T>(arr)) {}
+
+    auto get(uint i, uint j) const noexcept -> std::expected<T, Error> override {
+        if (i >= Rows or j >= Cols) {
+            return std::unexpected(Error::OutOfRange);
+        }
+        return this->data.at(i).at(j);
+    }
+
+    auto at(uint i, uint j) -> T & override {
+        return this->data.at(i).at(j);
+    }
+
+    // Getter for row amount.
+    [[nodiscard]] consteval auto rows() noexcept -> uint {
+        return Rows;
+    }
+
+    // Getter for column amount.
+    [[nodiscard]] consteval auto cols() noexcept -> uint {
+        return Cols;
+    }
+
+    ARITHMETIC(T, Rows, Cols, +, add, +)
+    ARITHMETIC(T, Rows, Cols, -, sub, -)
+    ARITHMETIC(T, Rows, Cols, *, hadamard, &)
+    MUL(T, Rows, Cols)
+    MUL_CONSTANT(T, Rows, Cols)
+    TRANSPOSE(T, Rows, Cols)
+};
+
+//====================================================================================================
 /**
  * Helper function for creating a square matrix
  */
 template <uint N, typename T = double>
-auto Square(const std::array<T, N * N> &arr) -> Mat<N, N, T> {
+auto square(const std::array<T, N * N> &arr) -> Mat<N, N, T> {
     return Mat<N, N, T>(arr);
 }
 
@@ -305,7 +313,7 @@ auto Square(const std::array<T, N * N> &arr) -> Mat<N, N, T> {
  * Helper function for creating a square identity matrix
  */
 template <uint N, typename T = double>
-auto Identity() -> Mat<N, N, T> {
+auto identity() -> Mat<N, N, T> {
     Mat<N, N, T> mat{};
     for (uint i = 0; i < N; ++i) {
         mat[i, i] = 1;
@@ -314,17 +322,17 @@ auto Identity() -> Mat<N, N, T> {
 }
 
 /**
- * Square Matrix specialization
+ * square Matrix specialization
  */
 template <uint N, typename T>
 class Mat<N, N, T> : public Interface<N, N, T> {
    protected:
-    table<N, N, T> data;
+    detail::table<N, N, T> data;
 
    public:
     Mat() = default;
     ~Mat() = default;
-    explicit Mat(std::array<T, N * N> arr) : data(tablify<N, N, T>(arr)) {}
+    explicit Mat(std::array<T, N * N> arr) : data(detail::tablify<N, N, T>(arr)) {}
 
     auto get(uint i, uint j) const noexcept -> std::expected<T, Error> override {
         if (i >= N or j >= N) {
@@ -354,25 +362,32 @@ class Mat<N, N, T> : public Interface<N, N, T> {
     TRANSPOSE(T, N, N)
 };
 
-/// Helper function for constructing a Mat<1, N>.
+//====================================================================================================
+/** Helper function for constructing a Mat\<1, N>.
+ */
 template <uint N, typename T = double>
-auto Vec(std::array<T, N> values) -> Mat<1, N, T> {
+auto vec(std::array<T, N> values) -> Mat<1, N, T> {
     return Mat<1, N, T>(values);
 }
 
-/// Helper function for constructing a Mat<1, 2>.
+/** Helper function for constructing a Mat\<1, 2>.
+ */
 template <typename T = double>
-auto Vec2(T x, T y) -> Mat<1, 2, T> {
+auto vec2(T x, T y) -> Mat<1, 2, T> {
     return Mat<1, 2, T>(x, y);
 }
 
-/// Helper function for constructing a Mat<1, 3>.
+/** Helper function for constructing a Mat\<1, 3>.
+ */
 template <typename T = double>
-auto Vec3(T x, T y, T z) -> Mat<1, 3, T> {
+auto vec3(T x, T y, T z) -> Mat<1, 3, T> {
     return Mat<1, 3, T>(x, y, z);
 }
 
-/// Vec 1xN specialization, Nx1 matrices are not considered vectors.
+/** General vector specialization, Nx1 matrices are not considered vectors.
+ * @tparam N - capacity of the vector
+ * @tparam T
+ */
 template <uint N, typename T>
 class Mat<1, N, T> : public Interface<1, N, T> {
    private:
@@ -438,6 +453,7 @@ class Mat<1, 2, T> : public Interface<1, 2, T> {
     VECTOR(T, 1, 2)
 };
 
+//====================================================================================================
 /**
  * Vec3 specialization
  */
