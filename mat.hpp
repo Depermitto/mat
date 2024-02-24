@@ -71,7 +71,7 @@ class Interface {
         if (Rows * Cols != R * C) {
             return false;
         }
-        
+
         for (uint i = 0; i < Rows; ++i) {
             for (uint j = 0; j < Rows; ++j) {
                 if (this->get(i, j).value() != mat.get(i, j).value()) {
@@ -81,12 +81,12 @@ class Interface {
         }
         return true;
     }
-    
+
     /** The != is the negation of ==, refer to == for implementation details.
      */
     template <uint R, uint C>
     auto operator!=(const Interface<R, C, T> &mat) const -> bool {
-        return not (*this == mat);
+        return not(*this == mat);
     }
 };
 
@@ -174,6 +174,34 @@ namespace detail {
         return this->func_name(other);                                                                  \
     }
 
+#define CUT(T, Rows, Cols)                                                                    \
+    template <uint R, uint C, std::enable_if_t<(R <= Rows && C <= Cols), bool> = true>        \
+    auto cut(bool take_right = false, bool take_down = false) const noexcept -> Mat<R, C, T> { \
+        Mat<R, C, T> shrunk{};                                                                \
+        for (uint i = 0; i < R; ++i) {                                                        \
+            for (uint j = 0; j < C; ++j) {                                                    \
+                uint take_i = take_down ? (Rows - R) + i : i;                                 \
+                uint take_j = take_right ? (Cols - C) + j : j;                                 \
+                shrunk[i, j] = this->get(take_i, take_j).value();                             \
+            }                                                                                 \
+        }                                                                                     \
+        return shrunk;                                                                        \
+    }                                                                                         \
+                                                                                              \
+    template <uint R, uint C, std::enable_if_t<(R <= Rows && C <= Cols), bool> = true>        \
+    auto submatrix(uint row, uint col) const noexcept -> std::expected<Mat<R, C, T>, Error> { \
+        Mat<R, C, T> shrunk{};                                                                \
+        for (uint i = 0; i < R; ++i) {                                                        \
+            for (uint j = 0; j < C; ++j) {                                                    \
+                if (not this->get(i + row, j + col).has_value()) {                            \
+                    return std::unexpected(Error::OutOfRange);                                \
+                }                                                                             \
+                shrunk[i, j] = this->get(i + row, j + col).value();                           \
+            }                                                                                 \
+        }                                                                                     \
+        return shrunk;                                                                        \
+    }
+
 #define DOT(T, Rows, Cols)                                                                          \
     /**                                                                                             \
      * Standard dot operation between two matrices                                                  \
@@ -202,6 +230,7 @@ namespace detail {
     MUL(T, Rows, Cols)                                                                            \
     MUL_CONSTANT(T, Rows, Cols)                                                                   \
     TRANSPOSE(T, Rows, Cols)                                                                      \
+    CUT(T, Rows, Cols)                                                                            \
                                                                                                   \
     [[nodiscard]] auto mag_squared() const noexcept -> T {                                        \
         T sum{};                                                                                  \
@@ -298,6 +327,7 @@ class Mat : public Interface<Rows, Cols, T> {
     MUL(T, Rows, Cols)
     MUL_CONSTANT(T, Rows, Cols)
     TRANSPOSE(T, Rows, Cols)
+    CUT(T, Rows, Cols)
 };
 
 //====================================================================================================
@@ -360,6 +390,7 @@ class Mat<N, N, T> : public Interface<N, N, T> {
     MUL(T, N, N)
     MUL_CONSTANT(T, N, N)
     TRANSPOSE(T, N, N)
+    CUT(T, N, N)
 };
 
 //====================================================================================================
