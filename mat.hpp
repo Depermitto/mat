@@ -20,7 +20,7 @@ enum class Error {
  * @tparam Cols
  * @tparam T
  */
-template <uint Rows, uint Cols, typename T = double>
+template <uint Rows, uint Cols, typename T = int>
 class Interface {
    public:
     virtual auto at(uint, uint) -> T & = 0;
@@ -262,10 +262,10 @@ namespace detail {
 
 //====================================================================================================
 
-template <uint Rows, uint Cols, typename T = double>
+template <uint Rows, uint Cols, typename T = int>
 using table = std::array<std::array<T, Cols>, Rows>;
 
-template <uint Rows, uint Cols, typename T = double>
+template <uint Rows, uint Cols, typename T = int>
 auto tablify(const std::array<T, Rows * Cols> &arr) noexcept -> table<Rows, Cols, T> {
     table<Rows, Cols, T> data{};
     for (uint i = 0, col = 0; i < arr.size(); i += Cols, col++) {
@@ -290,7 +290,7 @@ auto tablify(const std::array<T, Rows * Cols> &arr) noexcept -> table<Rows, Cols
  * @tparam Cols
  * @tparam T
  */
-template <uint Rows, uint Cols, std::convertible_to<double> T = double>
+template <uint Rows, uint Cols, std::convertible_to<double> T = int>
 class Mat : public Interface<Rows, Cols, T> {
    protected:
     detail::table<Rows, Cols, T> data;
@@ -334,7 +334,7 @@ class Mat : public Interface<Rows, Cols, T> {
 /**
  * Helper function for creating a square matrix
  */
-template <uint N, typename T = double>
+template <uint N, typename T = int>
 auto square(const std::array<T, N * N> &arr) -> Mat<N, N, T> {
     return Mat<N, N, T>(arr);
 }
@@ -342,7 +342,7 @@ auto square(const std::array<T, N * N> &arr) -> Mat<N, N, T> {
 /**
  * Helper function for creating a square identity matrix
  */
-template <uint N, typename T = double>
+template <uint N, typename T = int>
 auto identity() -> Mat<N, N, T> {
     Mat<N, N, T> mat{};
     for (uint i = 0; i < N; ++i) {
@@ -394,23 +394,23 @@ class Mat<N, N, T> : public Interface<N, N, T> {
 };
 
 //====================================================================================================
-/** Helper function for constructing a Mat\<1, N>.
+/** Helper function for constructing a Mat\<1, N>. Defaults to zero vector.
  */
-template <uint N, typename T = double>
-auto vec(std::array<T, N> values) -> Mat<1, N, T> {
+template <uint N, typename T = int>
+auto vec(std::array<T, N> values = {}) -> Mat<1, N, T> {
     return Mat<1, N, T>(values);
 }
 
 /** Helper function for constructing a Mat\<1, 2>.
  */
-template <typename T = double>
+template <typename T = int>
 auto vec2(T x, T y) -> Mat<1, 2, T> {
     return Mat<1, 2, T>(x, y);
 }
 
 /** Helper function for constructing a Mat\<1, 3>.
  */
-template <typename T = double>
+template <typename T = int>
 auto vec3(T x, T y, T z) -> Mat<1, 3, T> {
     return Mat<1, 3, T>(x, y, z);
 }
