@@ -3,94 +3,13 @@
 #include <algorithm>
 #include <array>
 #include <cmath>
-#include <concepts>
 #include <expected>
 #include <sstream>
 
 namespace mat {
 
-enum class Error {
-    OutOfRange,
-    ZeroDivision,
-};
-
-/**
- * Common interface shared by all Mat classes
- * @tparam Rows
- * @tparam Cols
- * @tparam T
- */
-template <uint Rows, uint Cols, typename T = int>
-class Interface {
-   public:
-    virtual auto at(uint, uint) -> T & = 0;
-    virtual auto get(uint, uint) const noexcept -> std::expected<T, Error> = 0;
-
-    [[nodiscard]] consteval auto size() const noexcept -> uint {
-        return Cols * Rows;
-    }
-
-    /// Getter/Setter for a specified element in the matrix.
-    auto operator[](uint i, uint j) -> T & {
-        return this->at(i, j);
-    };
-
-    /// Getter/Setter for an nth element in the matrix, disregarding dimensions.
-    auto operator[](uint i) -> T & {
-        return this->at(i / Cols, i % Cols);
-    }
-
-    friend auto operator<<(std::ostream &os, const Interface &mat) -> std::ostream & {
-        if (Rows != 1) {
-            os << "[";
-        }
-        os << "[";
-        for (uint i = 0; i != Rows; i++) {
-            for (uint j = 0; j != Cols; j++) {
-                os << mat.get(i, j).value();
-                if (j + 1 < Cols) {
-                    os << " ";
-                }
-            }
-            os << "]";
-            if (i + 1 < Rows) {
-                os << "\n [";
-            }
-        }
-        if (Rows != 1) {
-            os << "]";
-        }
-        return os;
-    }
-
-    /** The == operator is implemented on all matrix specialization and matrices of different sizes,
-     *  it checks if the size if the same and then compares every element to each other.
-     */
-    template <uint R, uint C>
-    auto operator==(const Interface<R, C, T> &mat) const -> bool {
-        if (Rows * Cols != R * C) {
-            return false;
-        }
-
-        for (uint i = 0; i < Rows; ++i) {
-            for (uint j = 0; j < Rows; ++j) {
-                if (this->get(i, j).value() != mat.get(i, j).value()) {
-                    return false;
-                }
-            }
-        }
-        return true;
-    }
-
-    /** The != is the negation of ==, refer to == for implementation details.
-     */
-    template <uint R, uint C>
-    auto operator!=(const Interface<R, C, T> &mat) const -> bool {
-        return not(*this == mat);
-    }
-};
-
 namespace detail {
+namespace matrix {
 #define MUL(T, Rows, Cols)                                                                        \
     /**                                                                                           \
      * Performs standard matrix multiplication.                                                   \
@@ -174,34 +93,35 @@ namespace detail {
         return this->func_name(other);                                                                  \
     }
 
-#define CUT(T, Rows, Cols)                                                                    \
-    template <uint R, uint C, std::enable_if_t<(R <= Rows && C <= Cols), bool> = true>        \
+#define CUT(T, Rows, Cols)                                                                     \
+    template <uint R, uint C, std::enable_if_t<(R <= Rows && C <= Cols), bool> = true>         \
     auto cut(bool take_right = false, bool take_down = false) const noexcept -> Mat<R, C, T> { \
-        Mat<R, C, T> shrunk{};                                                                \
-        for (uint i = 0; i < R; ++i) {                                                        \
-            for (uint j = 0; j < C; ++j) {                                                    \
-                uint take_i = take_down ? (Rows - R) + i : i;                                 \
+        Mat<R, C, T> shrunk{};                                                                 \
+        for (uint i = 0; i < R; ++i) {                                                         \
+            for (uint j = 0; j < C; ++j) {                                                     \
+                uint take_i = take_down ? (Rows - R) + i : i;                                  \
                 uint take_j = take_right ? (Cols - C) + j : j;                                 \
-                shrunk[i, j] = this->get(take_i, take_j).value();                             \
-            }                                                                                 \
-        }                                                                                     \
-        return shrunk;                                                                        \
-    }                                                                                         \
-                                                                                              \
-    template <uint R, uint C, std::enable_if_t<(R <= Rows && C <= Cols), bool> = true>        \
-    auto submatrix(uint row, uint col) const noexcept -> std::expected<Mat<R, C, T>, Error> { \
-        Mat<R, C, T> shrunk{};                                                                \
-        for (uint i = 0; i < R; ++i) {                                                        \
-            for (uint j = 0; j < C; ++j) {                                                    \
-                if (not this->get(i + row, j + col).has_value()) {                            \
-                    return std::unexpected(Error::OutOfRange);                                \
-                }                                                                             \
-                shrunk[i, j] = this->get(i + row, j + col).value();                           \
-            }                                                                                 \
-        }                                                                                     \
-        return shrunk;                                                                        \
+                shrunk[i, j] = this->get(take_i, take_j).value();                              \
+            }                                                                                  \
+        }                                                                                      \
+        return shrunk;                                                                         \
+    }                                                                                          \
+                                                                                               \
+    template <uint R, uint C, std::enable_if_t<(R <= Rows && C <= Cols), bool> = true>         \
+    auto submatrix(uint row, uint col) const noexcept -> std::expected<Mat<R, C, T>, Error> {  \
+        Mat<R, C, T> shrunk{};                                                                 \
+        for (uint i = 0; i < R; ++i) {                                                         \
+            for (uint j = 0; j < C; ++j) {                                                     \
+                if (not this->get(i + row, j + col).has_value()) {                             \
+                    return std::unexpected(Error::OutOfRange);                                 \
+                }                                                                              \
+                shrunk[i, j] = this->get(i + row, j + col).value();                            \
+            }                                                                                  \
+        }                                                                                      \
+        return shrunk;                                                                         \
     }
-
+}  // namespace matrix
+namespace vector {
 #define DOT(T, Rows, Cols)                                                                          \
     /**                                                                                             \
      * Standard dot operation between two matrices                                                  \
@@ -221,29 +141,20 @@ namespace detail {
         return this->dot(other);                                                                    \
     }
 
-#define VECTOR(T, Rows, Cols)                                                                     \
-    ARITHMETIC(T, Rows, Cols, +, add, +)                                                          \
-    ARITHMETIC(T, Rows, Cols, -, sub, -)                                                          \
-    ARITHMETIC(T, Rows, Cols, *, hadamard, &)                                                     \
-    DOT(T, Rows, Cols)                                                                            \
-    DOT(T, Cols, Rows)                                                                            \
-    MUL(T, Rows, Cols)                                                                            \
-    MUL_CONSTANT(T, Rows, Cols)                                                                   \
-    TRANSPOSE(T, Rows, Cols)                                                                      \
-    CUT(T, Rows, Cols)                                                                            \
-                                                                                                  \
-    [[nodiscard]] auto mag_squared() const noexcept -> T {                                        \
-        T sum{};                                                                                  \
-        for (uint i = 0; i < Rows; i++) {                                                         \
-            sum += std::pow(this->get(0, i).value(), 2);                                          \
-        }                                                                                         \
-        return sum;                                                                               \
-    }                                                                                             \
-                                                                                                  \
-    [[nodiscard]] auto mag() const noexcept -> double {                                           \
-        return std::sqrt(this->mag_squared());                                                    \
-    }                                                                                             \
-                                                                                                  \
+#define MAG(T, Rows, Cols)                                 \
+    [[nodiscard]] auto mag_squared() const noexcept -> T { \
+        T sum{};                                           \
+        for (uint i = 0; i < Rows; i++) {                  \
+            sum += std::pow(this->get(0, i).value(), 2);   \
+        }                                                  \
+        return sum;                                        \
+    }                                                      \
+                                                           \
+    [[nodiscard]] auto mag() const noexcept -> double {    \
+        return std::sqrt(this->mag_squared());             \
+    }
+
+#define NORM(T, Rows, Cols)                                                                       \
     auto norm() const noexcept -> std::expected<Mat<Rows, Cols, T>, Error> {                      \
         double mag = this->mag();                                                                 \
         if (mag == 0) {                                                                           \
@@ -259,8 +170,28 @@ namespace detail {
     auto direction(const Mat &other) const noexcept -> std::expected<Mat<Rows, Cols, T>, Error> { \
         return other.sub(*this).norm();                                                           \
     }
+}  // namespace vector
 
-//====================================================================================================
+#define MATRIX(T, Rows, Cols)                 \
+    ARITHMETIC(T, Rows, Cols, +, add, +)      \
+    ARITHMETIC(T, Rows, Cols, -, sub, -)      \
+    ARITHMETIC(T, Rows, Cols, *, hadamard, &) \
+    MUL(T, Rows, Cols)                        \
+    MUL_CONSTANT(T, Rows, Cols)               \
+    TRANSPOSE(T, Rows, Cols)                  \
+    CUT(T, Rows, Cols)
+
+#define VECTOR(T, Rows, Cols) \
+    MATRIX(T, Rows, Cols)     \
+    DOT(T, Rows, Cols)        \
+    DOT(T, Cols, Rows)        \
+    MAG(T, Rows, Cols)        \
+    NORM(T, Rows, Cols)
+
+#define THROW_OUT_OF_RANGE(i)                                                     \
+    std::stringstream error_message;                                              \
+    error_message << "array::at: __n (which is " << i << ") >= _Nm (which is 1)"; \
+    throw std::out_of_range(error_message.str());
 
 template <uint Rows, uint Cols, typename T = int>
 using table = std::array<std::array<T, Cols>, Rows>;
@@ -276,12 +207,90 @@ auto tablify(const std::array<T, Rows * Cols> &arr) noexcept -> table<Rows, Cols
     }
     return data;
 }
-
-#define THROW_OUT_OF_RANGE(i)                                                     \
-    std::stringstream error_message;                                              \
-    error_message << "array::at: __n (which is " << i << ") >= _Nm (which is 1)"; \
-    throw std::out_of_range(error_message.str());
 }  // namespace detail
+
+enum class Error {
+    OutOfRange,
+    ZeroDivision,
+};
+
+/**
+ * Common interface shared by all Mat classes
+ * @tparam Rows
+ * @tparam Cols
+ * @tparam T
+ */
+template <uint Rows, uint Cols, typename T = int>
+class Interface {
+   public:
+    virtual auto at(uint, uint) -> T & = 0;
+    virtual auto get(uint, uint) const noexcept -> std::expected<T, Error> = 0;
+
+    [[nodiscard]] consteval auto size() const noexcept -> uint {
+        return Cols * Rows;
+    }
+
+    /// Getter/Setter for a specified element in the matrix.
+    auto operator[](uint i, uint j) -> T & {
+        return this->at(i, j);
+    };
+
+    /// Getter/Setter for an nth element in the matrix, disregarding dimensions.
+    auto operator[](uint i) -> T & {
+        return this->at(i / Cols, i % Cols);
+    }
+
+    friend auto operator<<(std::ostream &os, const Interface &mat) -> std::ostream & {
+        os << "[";
+        if (Rows != 1) {
+            os << "[";
+        }
+
+        for (uint i = 0; i != Rows; i++) {
+            for (uint j = 0; j != Cols; j++) {
+                os << mat.get(i, j).value();
+                if (j + 1 < Cols) {
+                    os << " ";
+                }
+            }
+            os << "]";
+            if (i + 1 < Rows) {
+                os << "\n [";
+            }
+        }
+
+        if (Rows != 1) {
+            os << "]";
+        }
+        return os;
+    }
+
+    /** The == operator is implemented on all matrix specialization and matrices of different sizes,
+     *  it checks if the size if the same and then compares every element to each other.
+     */
+    template <uint R, uint C>
+    auto operator==(const Interface<R, C, T> &mat) const -> bool {
+        if (Rows * Cols != R * C) {
+            return false;
+        }
+
+        for (uint i = 0; i < Rows; ++i) {
+            for (uint j = 0; j < Rows; ++j) {
+                if (this->get(i, j).value() != mat.get(i, j).value()) {
+                    return false;
+                }
+            }
+        }
+        return true;
+    }
+
+    /** != is the negation of ==, refer to == for implementation details.
+     */
+    template <uint R, uint C>
+    auto operator!=(const Interface<R, C, T> &mat) const -> bool {
+        return not(*this == mat);
+    }
+};
 
 //====================================================================================================
 /**
@@ -321,13 +330,7 @@ class Mat : public Interface<Rows, Cols, T> {
         return Cols;
     }
 
-    ARITHMETIC(T, Rows, Cols, +, add, +)
-    ARITHMETIC(T, Rows, Cols, -, sub, -)
-    ARITHMETIC(T, Rows, Cols, *, hadamard, &)
-    MUL(T, Rows, Cols)
-    MUL_CONSTANT(T, Rows, Cols)
-    TRANSPOSE(T, Rows, Cols)
-    CUT(T, Rows, Cols)
+    MATRIX(T, Rows, Cols)
 };
 
 //====================================================================================================
@@ -384,13 +387,7 @@ class Mat<N, N, T> : public Interface<N, N, T> {
         // TODO finish determinant algorithm
     }
 
-    ARITHMETIC(T, N, N, +, add, +)
-    ARITHMETIC(T, N, N, -, sub, -)
-    ARITHMETIC(T, N, N, *, hadamard, &)
-    MUL(T, N, N)
-    MUL_CONSTANT(T, N, N)
-    TRANSPOSE(T, N, N)
-    CUT(T, N, N)
+    MATRIX(T, N, N)
 };
 
 //====================================================================================================
@@ -526,3 +523,15 @@ class Mat<1, 3, T> : public Interface<1, 3, T> {
     VECTOR(T, 1, 3)
 };
 }  // namespace mat
+
+#undef ARITHMETIC
+#undef MUL
+#undef MUL_CONSTANT
+#undef TRANSPOSE
+#undef CUT
+#undef DOT
+#undef MAG
+#undef NORM
+#undef MATRIX
+#undef VECTOR
+#undef THROW_OUT_OF_RANGE
