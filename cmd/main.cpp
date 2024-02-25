@@ -1,8 +1,15 @@
 #include <iostream>
+#include <numeric>
+#include <vector>
 
 #include "mat.hpp"
 
 int main() {
-    auto b = mat::Mat<4, 6>({1, 2, 3, 4});
-    std::cout << b << "\n" << b.submatrix<1, 3>(0, 2).value_or(mat::vec<3>()) << "\n";
+    std::vector<int> vec(50);
+    std::iota(vec.begin(), vec.end(), 10);
+
+    auto b = mat::square<4>(vec);
+    std::cout << b << "\n";
+
+    std::cout << b - mat::identity<4>().mul(20) << "\n";
 }
