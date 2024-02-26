@@ -664,7 +664,14 @@ class Mat<1, 2, T> : public Interface<1, 2, T> {
  */
 template <typename T>
 class Mat<1, 3, T> : public Interface<1, 3, T> {
-   protected:
+   public:
+    T x, y, z;
+
+    Mat() = default;
+    ~Mat() = default;
+    explicit Mat(std::span<T, 3> array) : x(array[0]), y(array[1]), z(array[2]) {}
+    Mat(T x, T y, T z) : x(x), y(y), z(z) {}
+    
     auto get(uint i, uint j) const noexcept -> std::expected<T, Error> override {
         if (i != 0 or j > 2) {
             return std::unexpected(Error::OutOfRange);
@@ -688,14 +695,6 @@ class Mat<1, 3, T> : public Interface<1, 3, T> {
             return z;
         }
     }
-
-   public:
-    T x, y, z;
-
-    Mat() = default;
-    ~Mat() = default;
-    explicit Mat(std::span<T, 3> array) : x(array[0]), y(array[1]), z(array[2]) {}
-    Mat(T x, T y, T z) : x(x), y(y), z(z) {}
 
     VECTOR(T, 1, 3)
 };
