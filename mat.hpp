@@ -111,8 +111,8 @@ namespace matrix {
      * Cut a submatrix from one of the corners.                                                    \
      */                                                                                            \
     template <uint R, uint C>                                                                      \
-    auto cut(bool take_right = false, bool take_down = false) const noexcept -> Mat<R, C, T>       \
         requires Shrinkable<Rows, Cols, R, C>                                                      \
+    auto cut(bool take_right = false, bool take_down = false) const noexcept -> Mat<R, C, T>       \
     {                                                                                              \
         Mat<R, C, T> shrunk{};                                                                     \
         for (uint i = 0; i < R; ++i) {                                                             \
@@ -130,8 +130,8 @@ namespace matrix {
      * starting point denoted by (i, j).                                                           \
      */                                                                                            \
     template <uint R, uint C>                                                                      \
-    auto submatrix(uint row, uint col) const noexcept -> std::expected<Mat<R, C, T>, Error>        \
         requires Shrinkable<Rows, Cols, R, C>                                                      \
+    auto submatrix(uint row, uint col) const noexcept -> std::expected<Mat<R, C, T>, Error>        \
     {                                                                                              \
         Mat<R, C, T> shrunk{};                                                                     \
         for (uint i = 0; i < R; ++i) {                                                             \
@@ -144,12 +144,14 @@ namespace matrix {
         }                                                                                          \
         return shrunk;                                                                             \
     }                                                                                              \
+                                                                                                   
+#define PAD(T, Rows, Cols)                                                                         \
     /**                                                                                            \
      * Extend the matrix by padding new elements with the default value.                           \
      */                                                                                            \
     template <uint R, uint C>                                                                      \
-    auto pad() const noexcept -> Mat<R, C, T>                                                      \
         requires Extendable<Rows, Cols, R, C>                                                      \
+    auto pad() const noexcept -> Mat<R, C, T>                                                      \
     {                                                                                              \
         Mat<R, C, T> mat{};                                                                        \
         for (uint i = 0; i < Rows; ++i) {                                                          \
@@ -188,9 +190,9 @@ namespace matrix {
                                                     \
     template <uint R>                               \
         requires(R < Rows)                          \
-    auto mod_row(Mat<1, Cols, T> vec) -> Mat {      \
+    auto mod_row(Mat<1, Cols, T> new_row) -> Mat {      \
         for (uint i = 0; i < Cols; ++i) {           \
-            this->at(R, i) = vec.get(0, i).value(); \
+            this->at(R, i) = new_row.get(0, i).value(); \
         }                                           \
         return *this;                               \
     }                                               \
@@ -207,15 +209,14 @@ namespace matrix {
                                                     \
     template <uint C>                               \
         requires(C < Cols)                          \
-    auto mod_col(Mat<Rows, 1, T> vec) -> Mat {      \
+    auto mod_col(Mat<Rows, 1, T> new_col) -> Mat {      \
         for (uint j = 0; j < Rows; ++j) {           \
-            this->at(j, C) = vec.get(j, 0).value(); \
+            this->at(j, C) = new_col.get(j, 0).value(); \
         }                                           \
         return *this;                               \
     }
 
 }  // namespace matrix
-
 namespace vector {
 #define DOT(T, Rows, Cols)                                                                          \
     /**                                                                                             \
@@ -275,6 +276,7 @@ namespace vector {
     MUL_CONSTANT(T, Rows, Cols)               \
     TRANSPOSE(T, Rows, Cols)                  \
     CUT(T, Rows, Cols)                        \
+    PAD(T, Rows, Cols)                        \
     ROW_COL(T, Rows, Cols)
 
 #define VECTOR(T, Rows, Cols) \
@@ -301,6 +303,13 @@ auto tablify(std::span<T> s) noexcept -> table<Rows, Cols, T> {
         i += Cols;
     }
     return data;
+}
+
+template <uint Rows, uint Cols, typename T = int>
+auto filled(T fill) -> std::array<T, Rows * Cols> {
+    std::array<T, Rows * Cols> repeat{};
+    repeat.fill(fill);
+    return std::move(repeat);
 }
 }  // namespace detail
 
@@ -476,6 +485,13 @@ class Mat : public Interface<Rows, Cols, T> {
     MATRIX(T, Rows, Cols)
 };
 
+template <uint Rows, uint Cols, typename T = int>
+auto filled(T fill) -> Mat<Rows, Cols, T> {
+    std::array<T, Rows * Cols> repeat;
+    repeat.fill(fill);
+    return Mat<Rows, Cols, T>(repeat); 
+}
+
 //====================================================================================================
 /**
  * Convenience function for creating a square matrix.
@@ -490,9 +506,7 @@ auto square(Ts... values) -> Mat<N, N, T> {
  */
 template <uint N, typename T = int>
 auto square(T fill) -> Mat<N, N, T> {
-    std::array<T, N * N> repeat;
-    repeat.fill(fill);
-    return Mat<N, N, T>(repeat);
+    return Mat<N, N, T>(detail::filled<N, N, T>(fill));
 }
 
 /**
@@ -560,9 +574,7 @@ auto vec(Ts... values) -> Mat<1, N, T> {
  */
 template <uint N, typename T = int>
 auto vec(T fill) -> Mat<1, N, T> {
-    std::array<T, N> repeat;
-    repeat.fill(fill);
-    return Mat<1, N, T>(repeat);
+    return Mat<1, N, T>(detail::filled<1, N, T>(fill));
 }
 
 /**
@@ -594,6 +606,7 @@ class Mat<1, N, T> : public Interface<1, N, T> {
    public:
     Mat() = default;
     ~Mat() = default;
+    explicit Mat(std::array<T, N> array) : data(array) {}
     explicit Mat(std::span<T> span) {
         std::copy(span.begin(), span.end(), data.begin());
     }

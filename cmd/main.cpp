@@ -8,9 +8,9 @@ int main() {
     std::vector<int> vec(500);
     std::iota(vec.begin(), vec.end(), 10);
 
-    auto a = mat::Mat<3, 2>(vec);
+    auto a = mat::Mat<6, 8>(vec);
     std::cout << a << "\n";
-
-    std::cout << a.mod_row<1>(mat::vec2(0, 1)) << "\n";
-    std::cout << a.mod_col<0>(!mat::vec<3>(200)) << "\n";
+    
+    a = a & mat::square<4>(1).pad<6, 8>();
+    std::cout << a << "\n";
 }
