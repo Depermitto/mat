@@ -4,6 +4,7 @@
 #include <array>
 #include <cmath>
 #include <expected>
+#include <iomanip>
 #include <span>
 #include <sstream>
 
@@ -61,6 +62,12 @@ namespace matrix {
     template <typename Number, std::enable_if_t<std::is_arithmetic_v<Number>, bool> = true>     \
     friend auto operator*(Number constant, const Mat<Rows, Cols, T> &mat)->Mat<Rows, Cols, T> { \
         return mat.mul(constant);                                                               \
+    }                                                                                           \
+                                                                                                \
+    template <typename Number, std::enable_if_t<std::is_arithmetic_v<Number>, bool> = true>     \
+    auto operator*=(Number constant)->Mat<Rows, Cols, T> {                                      \
+        *this = this->mul(constant);                                                            \
+        return *this;                                                                           \
     }
 
 #define TRANSPOSE(T, Rows, Cols)                                   \
@@ -99,59 +106,114 @@ namespace matrix {
         return this->func_name(other);                                                                  \
     }
 
-#define CUT(T, Rows, Cols)                                                                   \
-    /**                                                                                      \
-     * Cut a submatrix from one of the corners.                                              \
-     */                                                                                      \
-    template <uint R, uint C>                                                                \
-    auto cut(bool take_right = false, bool take_down = false) const noexcept -> Mat<R, C, T> \
-        requires Shrinkable<Rows, Cols, R, C>                                                \
-    {                                                                                        \
-        Mat<R, C, T> shrunk{};                                                               \
-        for (uint i = 0; i < R; ++i) {                                                       \
-            for (uint j = 0; j < C; ++j) {                                                   \
-                uint take_i = take_down ? (Rows - R) + i : i;                                \
-                uint take_j = take_right ? (Cols - C) + j : j;                               \
-                shrunk[i, j] = this->get(take_i, take_j).value();                            \
-            }                                                                                \
-        }                                                                                    \
-        return shrunk;                                                                       \
-    }                                                                                        \
-                                                                                             \
-    /**                                                                                      \
-     * Cut submatrix from a specified location within the original matrix,                   \
-     * starting point denoted by (i, j).                                                     \
-     */                                                                                      \
-    template <uint R, uint C>                                                                \
-    auto submatrix(uint row, uint col) const noexcept -> std::expected<Mat<R, C, T>, Error>  \
-        requires Shrinkable<Rows, Cols, R, C>                                                \
-    {                                                                                        \
-        Mat<R, C, T> shrunk{};                                                               \
-        for (uint i = 0; i < R; ++i) {                                                       \
-            for (uint j = 0; j < C; ++j) {                                                   \
-                if (not this->get(i + row, j + col).has_value()) {                           \
-                    return std::unexpected(Error::OutOfRange);                               \
-                }                                                                            \
-                shrunk[i, j] = this->get(i + row, j + col).value();                          \
-            }                                                                                \
-        }                                                                                    \
-        return shrunk;                                                                       \
-    }                                                                                        \
-    /**                                                                                      \
-     * Extend the matrix by padding new elements with the default value.                     \
-     */                                                                                      \
-    template <uint R, uint C>                                                                \
-    auto extend() const noexcept -> Mat<R, C, T>                                             \
-        requires Extendable<Rows, Cols, R, C>                                                \
-    {                                                                                        \
-        Mat<R, C, T> mat{};                                                                  \
-        for (uint i = 0; i < Rows; ++i) {                                                    \
-            for (uint j = 0; j < Cols; ++j) {                                                \
-                mat[i, j] = this->get(i, j).value();                                         \
-            }                                                                                \
-        }                                                                                    \
-        return mat;                                                                          \
+#define CUT(T, Rows, Cols)                                                                         \
+    /**                                                                                            \
+     * Cut a submatrix from one of the corners.                                                    \
+     */                                                                                            \
+    template <uint R, uint C>                                                                      \
+    auto cut(bool take_right = false, bool take_down = false) const noexcept -> Mat<R, C, T>       \
+        requires Shrinkable<Rows, Cols, R, C>                                                      \
+    {                                                                                              \
+        Mat<R, C, T> shrunk{};                                                                     \
+        for (uint i = 0; i < R; ++i) {                                                             \
+            for (uint j = 0; j < C; ++j) {                                                         \
+                uint take_i = take_down ? (Rows - R) + i : i;                                      \
+                uint take_j = take_right ? (Cols - C) + j : j;                                     \
+                shrunk[i, j] = this->get(take_i, take_j).value();                                  \
+            }                                                                                      \
+        }                                                                                          \
+        return shrunk;                                                                             \
+    }                                                                                              \
+                                                                                                   \
+    /**                                                                                            \
+     * Cut submatrix from a specified location within the original matrix,                         \
+     * starting point denoted by (i, j).                                                           \
+     */                                                                                            \
+    template <uint R, uint C>                                                                      \
+    auto submatrix(uint row, uint col) const noexcept -> std::expected<Mat<R, C, T>, Error>        \
+        requires Shrinkable<Rows, Cols, R, C>                                                      \
+    {                                                                                              \
+        Mat<R, C, T> shrunk{};                                                                     \
+        for (uint i = 0; i < R; ++i) {                                                             \
+            for (uint j = 0; j < C; ++j) {                                                         \
+                if (not this->get(i + row, j + col).has_value()) {                                 \
+                    return std::unexpected(Error::OutOfRange);                                     \
+                }                                                                                  \
+                shrunk[i, j] = this->get(i + row, j + col).value();                                \
+            }                                                                                      \
+        }                                                                                          \
+        return shrunk;                                                                             \
+    }                                                                                              \
+    /**                                                                                            \
+     * Extend the matrix by padding new elements with the default value.                           \
+     */                                                                                            \
+    template <uint R, uint C>                                                                      \
+    auto pad() const noexcept -> Mat<R, C, T>                                                      \
+        requires Extendable<Rows, Cols, R, C>                                                      \
+    {                                                                                              \
+        Mat<R, C, T> mat{};                                                                        \
+        for (uint i = 0; i < Rows; ++i) {                                                          \
+            for (uint j = 0; j < Cols; ++j) {                                                      \
+                mat[i, j] = this->get(i, j).value();                                               \
+            }                                                                                      \
+        }                                                                                          \
+        return mat;                                                                                \
+    }                                                                                              \
+                                                                                                   \
+    template <uint R, uint C>                                                                      \
+        requires Extendable<Rows, Cols, R, C>                                                      \
+    auto expand(uint place_i, uint place_j) const noexcept -> std::expected<Mat<R, C, T>, Error> { \
+        Mat<R, C, T> mat{};                                                                        \
+        for (uint i = 0; i < Rows; ++i) {                                                          \
+            for (uint j = 0; j < Cols; ++j) {                                                      \
+                if (not mat.get(place_i + i, place_j + j).has_value()) {                           \
+                    return std::unexpected(Error::OutOfRange);                                     \
+                }                                                                                  \
+                mat[place_i + i, place_j + j] = this->get(i, j).value();                           \
+            }                                                                                      \
+        }                                                                                          \
+        return mat;                                                                                \
     }
+
+#define ROW_COL(T, Rows, Cols)                      \
+    template <uint R>                               \
+        requires(R < Rows)                          \
+    auto row() const noexcept -> Mat<1, Cols, T> {  \
+        Mat<1, Cols, T> row{};                      \
+        for (uint i = 0; i < Cols; ++i) {           \
+            row[0, i] = this->get(R, i).value();    \
+        }                                           \
+        return row;                                 \
+    }                                               \
+                                                    \
+    template <uint R>                               \
+        requires(R < Rows)                          \
+    auto mod_row(Mat<1, Cols, T> vec) -> Mat {      \
+        for (uint i = 0; i < Cols; ++i) {           \
+            this->at(R, i) = vec.get(0, i).value(); \
+        }                                           \
+        return *this;                               \
+    }                                               \
+                                                    \
+    template <uint C>                               \
+        requires(C < Cols)                          \
+    auto col() const noexcept -> Mat<Rows, 1, T> {  \
+        Mat<Rows, 1, T> col{};                      \
+        for (uint j = 0; j < Rows; ++j) {           \
+            col[j, 0] = this->get(j, C).value();    \
+        }                                           \
+        return col;                                 \
+    }                                               \
+                                                    \
+    template <uint C>                               \
+        requires(C < Cols)                          \
+    auto mod_col(Mat<Rows, 1, T> vec) -> Mat {      \
+        for (uint j = 0; j < Rows; ++j) {           \
+            this->at(j, C) = vec.get(j, 0).value(); \
+        }                                           \
+        return *this;                               \
+    }
+
 }  // namespace matrix
 
 namespace vector {
@@ -212,7 +274,8 @@ namespace vector {
     MUL(T, Rows, Cols)                        \
     MUL_CONSTANT(T, Rows, Cols)               \
     TRANSPOSE(T, Rows, Cols)                  \
-    CUT(T, Rows, Cols)
+    CUT(T, Rows, Cols)                        \
+    ROW_COL(T, Rows, Cols)
 
 #define VECTOR(T, Rows, Cols) \
     MATRIX(T, Rows, Cols)     \
@@ -263,6 +326,9 @@ concept TrivialNumber = std::convertible_to<T, double>;
  */
 template <uint Rows, uint Cols, typename T = int>
 class Interface {
+    //    template <uint, uint, typename>
+    //    friend class Mat;
+
    public:
     virtual auto at(uint, uint) -> T & = 0;
     virtual auto get(uint, uint) const noexcept -> std::expected<T, Error> = 0;
@@ -285,7 +351,24 @@ class Interface {
         return this->at(i / Cols, i % Cols);
     }
 
+    auto minmax() const noexcept -> std::pair<T, T> {
+        T max{}, min{};
+        for (uint i = 0; i < Rows; ++i) {
+            for (uint j = 0; j < Cols; ++j) {
+                if (T value = this->get(i, j).value(); value > max) {
+                    max = value;
+                } else if (value < min) {
+                    min = value;
+                }
+            }
+        }
+        return std::make_pair(min, max);
+    }
+
     friend auto operator<<(std::ostream &os, const Interface &mat) -> std::ostream & {
+        auto [min, max] = mat.minmax();
+        auto width = std::to_string(std::abs(min) > max ? min : max).size();
+
         os << "[";
         if (Rows != 1) {
             os << "[";
@@ -293,7 +376,7 @@ class Interface {
 
         for (uint i = 0; i != Rows; i++) {
             for (uint j = 0; j != Cols; j++) {
-                os << mat.get(i, j).value();
+                os << std::left << std::setw(width) << mat.get(i, j).value();
                 if (j + 1 < Cols) {
                     os << " ";
                 }
@@ -354,6 +437,7 @@ class Interface {
  * (according to the internet and Clang-Tidy).
  */
 template <uint Rows, uint Cols, TrivialNumber T = int>
+    requires(Rows >= 1 and Cols >= 1)
 class Mat : public Interface<Rows, Cols, T> {
    protected:
     detail::table<Rows, Cols, T> data;
@@ -394,15 +478,25 @@ class Mat : public Interface<Rows, Cols, T> {
 
 //====================================================================================================
 /**
- * Helper function for creating a square matrix.
+ * Convenience function for creating a square matrix.
  */
-template <uint N, typename T = int, typename... U>
-auto square(U... values) -> Mat<N, N, T> {
+template <uint N, typename T = int, typename... Ts>
+auto square(Ts... values) -> Mat<N, N, T> {
     return Mat<N, N, T>({values...});
 }
 
 /**
- * Helper function for creating a square identity matrix.
+ * Convenience function for constructing a square matrix filled with copies of a value.
+ */
+template <uint N, typename T = int>
+auto square(T fill) -> Mat<N, N, T> {
+    std::array<T, N * N> repeat;
+    repeat.fill(fill);
+    return Mat<N, N, T>(repeat);
+}
+
+/**
+ * Convenience function for creating a square identity matrix.
  */
 template <uint N, typename T = int>
 auto identity() -> Mat<N, N, T> {
@@ -454,15 +548,25 @@ class Mat<N, N, T> : public Interface<N, N, T> {
 
 //====================================================================================================
 /**
- * Helper function for constructing a Mat\<1, N>. Defaults to zero vector.
+ * Convenience function for constructing a Mat\<1, N>.
  */
-template <uint N, typename T = int, typename... U>
-auto vec(U... values) -> Mat<1, N, T> {
+template <uint N, typename T = int, typename... Ts>
+auto vec(Ts... values) -> Mat<1, N, T> {
     return Mat<1, N, T>({values...});
 }
 
 /**
- * Helper function for constructing a Mat\<1, 2>.
+ * Convenience function for constructing a Mat\<1, N> filled with copies of a value.
+ */
+template <uint N, typename T = int>
+auto vec(T fill) -> Mat<1, N, T> {
+    std::array<T, N> repeat;
+    repeat.fill(fill);
+    return Mat<1, N, T>(repeat);
+}
+
+/**
+ * Convenience function for constructing a Mat\<1, 2>.
  */
 template <typename T = int>
 auto vec2(T x, T y) -> Mat<1, 2, T> {
@@ -470,7 +574,7 @@ auto vec2(T x, T y) -> Mat<1, 2, T> {
 }
 
 /**
- * Helper function for constructing a Mat\<1, 3>.
+ * Convenience function for constructing a Mat\<1, 3>.
  */
 template <typename T = int>
 auto vec3(T x, T y, T z) -> Mat<1, 3, T> {
@@ -490,7 +594,6 @@ class Mat<1, N, T> : public Interface<1, N, T> {
    public:
     Mat() = default;
     ~Mat() = default;
-    explicit Mat(std::array<T, N> array) : data(array) {}
     explicit Mat(std::span<T> span) {
         std::copy(span.begin(), span.end(), data.begin());
     }
@@ -518,16 +621,13 @@ class Mat<1, N, T> : public Interface<1, N, T> {
  */
 template <typename T>
 class Mat<1, 2, T> : public Interface<1, 2, T> {
-   protected:
-    auto get(uint i, uint j) const noexcept -> std::expected<T, Error> override {
-        if (i != 0 or j > 1) {
-            return std::unexpected(Error::OutOfRange);
-        } else if (j == 0) {
-            return x;
-        } else {
-            return y;
-        }
-    }
+   public:
+    T x, y;
+
+    Mat() = default;
+    ~Mat() = default;
+    explicit Mat(std::span<T, 2> array) : x(array[0]), y(array[1]) {}
+    Mat(T x, T y) : x(x), y(y) {}
 
     auto at(uint i, uint j) -> T & override {
         if (i != 0 or j > 1) {
@@ -539,13 +639,15 @@ class Mat<1, 2, T> : public Interface<1, 2, T> {
         }
     }
 
-   public:
-    T x, y;
-
-    Mat() = default;
-    ~Mat() = default;
-    explicit Mat(std::array<T, 2> array) : x(array[0]), y(array[1]) {}
-    Mat(T x, T y) : x(x), y(y) {}
+    auto get(uint i, uint j) const noexcept -> std::expected<T, Error> override {
+        if (i != 0 or j > 1) {
+            return std::unexpected(Error::OutOfRange);
+        } else if (j == 0) {
+            return x;
+        } else {
+            return y;
+        }
+    }
 
     VECTOR(T, 1, 2)
 };
@@ -586,7 +688,7 @@ class Mat<1, 3, T> : public Interface<1, 3, T> {
 
     Mat() = default;
     ~Mat() = default;
-    explicit Mat(std::array<T, 3> array) : x(array[0]), y(array[1]), z(array[2]) {}
+    explicit Mat(std::span<T, 3> array) : x(array[0]), y(array[1]), z(array[2]) {}
     Mat(T x, T y, T z) : x(x), y(y), z(z) {}
 
     VECTOR(T, 1, 3)
