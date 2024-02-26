@@ -252,6 +252,9 @@ concept Extendable = ((R >= Rows and C >= Cols) and not(R == Rows and C == Cols)
 template <uint Rows, uint Cols, uint R, uint C>
 concept Shrinkable = ((R <= Rows and C <= Cols) and not(R == Rows and C == Cols));
 
+template <typename T, std::enable_if_t<std::is_trivially_copyable_v<T>, bool> = true>
+concept TrivialNumber = std::convertible_to<T, double>;
+
 /**
  * Common interface shared by all Mat classes.
  * @tparam Rows
@@ -350,7 +353,7 @@ class Interface {
  * underlying type for Mat is trivially-copyable and held on stack, so moving wouldn't provide any benefits
  * (according to the internet and Clang-Tidy).
  */
-template <uint Rows, uint Cols, std::convertible_to<double> T = int>
+template <uint Rows, uint Cols, TrivialNumber T = int>
 class Mat : public Interface<Rows, Cols, T> {
    protected:
     detail::table<Rows, Cols, T> data;

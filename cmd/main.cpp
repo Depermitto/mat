@@ -5,11 +5,9 @@
 #include "mat.hpp"
 
 int main() {
-    std::vector<int> vec(50);
+    std::vector<int> vec(500);
     std::iota(vec.begin(), vec.end(), 10);
 
-    auto b = mat::square<4>(vec);
-    std::cout << b << "\n";
-
-    std::cout << b - mat::identity<4>().mul(20) << "\n";
+    auto a = mat::Mat<30, 40>(vec).cut<2, 8>();
+    std::cout << a << "\n";
 }
