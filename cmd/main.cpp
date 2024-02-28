@@ -10,4 +10,7 @@ int main() {
     auto c = mat::Mamut<int, 7, 2>(v.begin() + 14, 14);
     b += !c;
     std::cout << b << "\n";
+
+    auto id = mat::Mamut<int, 5, 5>::identity();
+    std::cout << id << "\n";
 }

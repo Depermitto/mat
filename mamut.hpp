@@ -42,6 +42,16 @@ class Mamut {
         std::copy_n(begin, n, this->begin());
     }
 
+    static auto identity() -> Mamut
+        requires(Rows == Cols)
+    {
+        auto mamut = Mamut<T, Rows, Cols>();
+        for (uint i = 0; i < Rows; i++) {
+            mamut[i, i] = 1;
+        }
+        return mamut;
+    }
+
     auto begin() -> iter {
         return std::begin(data);
     }
