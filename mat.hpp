@@ -335,9 +335,6 @@ concept TrivialNumber = std::convertible_to<T, double>;
  */
 template <uint Rows, uint Cols, typename T = int>
 class Interface {
-    //    template <uint, uint, typename>
-    //    friend class Mat;
-
    public:
     virtual auto at(uint, uint) -> T & = 0;
     virtual auto get(uint, uint) const noexcept -> std::expected<T, Error> = 0;
@@ -404,7 +401,7 @@ class Interface {
 
     /**
      * The == operator is implemented on all matrix specialization and matrices of different sizes,
-     * it checks if the size if the same and then compares every element to each other.
+     * iter checks if the size if the same and then compares every element to each other.
      */
     template <uint R, uint C>
     auto operator==(const Interface<R, C, T> &mat) const noexcept -> bool {
