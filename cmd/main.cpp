@@ -1,13 +1,13 @@
 #include <iostream>
-#include <numeric>
-#include <vector>
 
-#include "mat.hpp"
+#include "mamut.hpp"
 
 int main() {
-    std::vector<int> vec(500);
-    std::iota(vec.begin(), vec.end(), 10);
+    auto v = std::vector<int>(50);
+    std::iota(v.begin(), v.end(), 0);
 
-    auto a = mat::Mat<6, 8>(vec);
-    std::cout << a.mod_col<5>(!mat::vec<6>(0)).mod_row<3>(mat::vec<8>(0)) << "\n";
+    auto b = mat::Mamut<int, 2, 7>(v.begin(), 14);
+    auto c = mat::Mamut<int, 7, 2>(v.begin() + 14, 14);
+    b += !c;
+    std::cout << b << "\n";
 }
