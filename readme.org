@@ -1,6 +1,6 @@
 #+title: Experimental header-only matrix library
 #+Author: Depermitto
 
-*mat* includes two types of matrices:
-- Mat: First attempt at creating a matrix
+*mat* includes two types of _on-compile checked static sized_ matrices:
+- Mat: First attempt, template specialized
 - Mamut: /Iterator-friendly/ and mutable when possible revision of *Mat*. It is also Doxygen documented.
