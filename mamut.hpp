@@ -32,7 +32,6 @@ class Mamut {
     }
 
    public:
-    Mamut() = default;
     //! Copy the elements from data to create a new Mamut matrix.
     //! \param data Variable [0, Rows * Cols] amount of TriviallyNumeric arguments.
     explicit Mamut(TriviallyNumeric auto... data) : data(data...) {}

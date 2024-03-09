@@ -1,16 +1,15 @@
 #include <iostream>
+#include <numeric>
 
 #include "mamut.hpp"
 
 int main() {
-    auto v = std::vector<int>(50);
-    std::iota(v.begin(), v.end(), 0);
+    auto a = mat::Mamut<int, 4, 5>();
+    auto b = mat::Mamut<int, 4, 5>(1, 2, 3, 4, 5);
 
-    auto b = mat::Mamut<int, 2, 7>(v.begin(), 14);
-    auto c = mat::Mamut<int, 7, 2>(v.begin() + 14, 14);
-    b += !c;
+    a.add(b).mod_col<2>(0, 7, 8, 6);
+    std::iota(a.begin(), a.end(), 0);
+
+    std::cout << a << "\n";
     std::cout << b << "\n";
-
-    auto id = mat::Mamut<int, 5, 5>::identity();
-    std::cout << id << "\n";
 }

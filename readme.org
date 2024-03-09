@@ -1,0 +1,7 @@
+#+title: Experimental header-only matrix library
+#+Author: Depermitto
+
+* Matrices
+*mat* includes two types of matrices:
+- Mat: First attempt at creating a matrix
+- Mamut: /Iterator-friendly/ and mutable when possible revision of *Mat*. It is also Doxygen documented.
